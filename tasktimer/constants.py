@@ -1,0 +1,1 @@
+TASKFILE = 'tasktimer/tasklist.json'

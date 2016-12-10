@@ -1,7 +1,6 @@
 from unittest import TestCase
-
-import tasktimer
+from tasktimer.task import Task
 
 class TestTimer(TestCase):
-    def test_is_string(self):
+    def test_test(self):
         self.assertTrue(True)
