@@ -18,7 +18,7 @@ setup(name='tasktimer',
       author_email='michael.singer.west@gmail.com',
       license='UNLICENSE',
       packages = find_packages(exclude=['docs', 'tests*']),
-      install_requires = ['docopt'], # dependencies 
+      install_requires = ['docopt', 'datetime', 'termcolor'], # dependencies 
       test_suite = 'nose.collector',
       tests_require = ['nose'], # nose is a testing thingamajig
       entry_points = {

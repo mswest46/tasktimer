@@ -1,1 +1,0 @@
-TASKFILE = 'tasktimer/tasklist.json'
