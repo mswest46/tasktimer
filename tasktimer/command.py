@@ -43,16 +43,19 @@ class Command():
         self.save()
 
     def list(self, command_options, out = False): 
-
-        print("\033c")
-        filterfun = extract_filter_data(command_options) 
         # terminal_width = int(subprocess.check_output(['tput', 'cols']))
 
+        # this little sequence pushes everything to the top of the terminal
+        print("\033c")
+
+
+        filterfun = extract_filter_data(command_options) 
+
         # which parts of task data should I display and in what order? 
-        display_keys = ['number', 'description', 'estimate', 'due', 'status']
+        display_keys = ['number', 'description', 'estimate', 'due', 'status', 'start_time']
 
         # what should the column labels be? 
-        column_names = {'number': 'NO.', 'description': 'TASK', 'estimate': 'ESTIMATE', 'due': 'DUE', 'status': 'STATUS'}
+        column_names = {'number': 'NO.', 'description': 'TASK', 'estimate': 'ESTIMATE', 'due': 'DUE', 'status': 'STATUS', 'start_time': 'TIME SPENT'}
 
         # get the display string for each task for each column
         task_string_array = []
@@ -84,11 +87,27 @@ class Command():
             string += column_names[key].ljust(column_widths[key]) + divider 
         cprint(string, 'white', 'on_blue', attrs = ['bold'])
 
+        # print tasks
         for i, t_string in enumerate(task_string_array):
             string = divider
             for key in display_keys: 
                 string += t_string[key].ljust(column_widths[key]) + divider
             cprint(string, color_array[i])
+        
+        # print totals
+        string = divider
+        for key in display_keys: 
+            if key == 'description':
+                string += "TOTALS".ljust(column_widths[key]) + divider 
+            elif key == 'estimate':
+                string += "est_tot".ljust(column_widths[key]) + divider 
+            elif key == 'start_time':
+                string += "tot_spent".ljust(column_widths[key]) + divider 
+            else:
+                string += "".ljust(column_widths[key]) + divider 
+
+        cprint(string, 'white', 'on_green', attrs = ['bold'])
+
 
         if out: 
             return number_to_index 
@@ -121,6 +140,7 @@ class Command():
 
     def delete(self, command_options, n = 0): 
         self.tasks.pop(0)
+        self.list(command_options)
         self.save()
 
     def deleteall(self, command_options): 
@@ -140,6 +160,13 @@ def format_string(t, key, number):
             return "in {} days".format(d)
     if key == 'estimate': 
         return "{} hrs".format(t.get(key)) if t.get(key) else ""
+    if key == 'start_time': 
+        if t.get('status') == 'complete' : 
+            return "{}:{}".format(t.get('end_time').hour - t.get('start_time').hour, t.get('end_time').minute - t.get('start_time').minute)
+        if t.get('status') == 'progress' : 
+            return "{}:{}".format(datetime.now().hour - t.get('start_time').hour, datetime.now().minute - t.get('start_time').minute)
+        else:
+            return ""
     if key == 'status':
         display_status = {
                 'pending': 'to do',

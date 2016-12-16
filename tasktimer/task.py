@@ -4,6 +4,9 @@ from datetime import datetime
 STATUS_KEY = 'status'
 ID_KEY = 'ID'
 DESCRIPTION_KEY = 'description'
+START_TIME_KEY = 'start_time'
+END_TIME_KEY = 'end_time'
+
 
 PENDING = 'pending'
 COMPLETE = 'complete'
@@ -21,9 +24,14 @@ class Task():
     
     def start(self): 
         self.set(STATUS_KEY, IN_PROGRESS)
+        self.set(START_TIME_KEY, datetime.now())
 
     def finish(self): 
         self.set(STATUS_KEY,  COMPLETE)
+        self.set(END_TIME_KEY, datetime.now())
+
+    def has(self, datum_name): 
+        return datum_name in self.data
 
     def set(self, datum_name, datum): 
         self.data[datum_name] = datum

@@ -2,12 +2,13 @@
  
 Usage:
   task
-  task add <description> [--priority <priority>] [--estimate <estimate>] [--recur <recur>] [--due <due>]
+  task add <description> --estimate <estimate> [--priority <priority>] [--recur <recur>] [--due <due>]
   task list [--filter <filter>]
   task move
   task start [--id <number>]
   task finish [--id <number>]
   task edit [--number <number>]
+  task delete [--number <number>]
   task deleteall
   task -h | --help
   task --version
