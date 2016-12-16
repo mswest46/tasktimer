@@ -1,3 +1,4 @@
+from __future__ import print_function
 import pickle
 from task import Task
 from datetime import datetime
@@ -7,6 +8,7 @@ import os
 from termcolor import colored, cprint
 from . import get_data
 import shutil
+import timeutils
 
 
 TASKS_FILE =  'tasks.pickle'
@@ -48,67 +50,87 @@ class Command():
         # this little sequence pushes everything to the top of the terminal
         print("\033c")
 
-
+        # filter
         filterfun = extract_filter_data(command_options) 
 
         # which parts of task data should I display and in what order? 
-        display_keys = ['number', 'description', 'estimate', 'due', 'status', 'start_time']
+        column_keys = ['number', 'status', 'description', 'due', 'estimate', 'time_spent']
 
-        # what should the column labels be? 
-        column_names = {'number': 'NO.', 'description': 'TASK', 'estimate': 'ESTIMATE', 'due': 'DUE', 'status': 'STATUS', 'start_time': 'TIME SPENT'}
+        row_content = []
+        row_color = []
 
-        # get the display string for each task for each column
-        task_string_array = []
-        color_array = []
+        # make colomn row
+        column_names = {'number': 'NO.', 'description': 'TASK', 'estimate': 'ESTIMATE', 'due': 'DUE', 'status': 'STATUS', 'time_spent': 'TIME SPENT'}
+        row_content.append([column_names[key] for key in column_keys])
+        row_color.append([None for key in column_keys])
 
+        # this loop determines the order in which tasks are displayed. So we note the number to index mapping as well as getting strings for each row and column
         number_to_index = {}
-        
-        number = 1
+        n = 1
+        div = None
         for i, t in enumerate(self.tasks): 
             if filterfun(t): 
-                number_to_index[number] = i
-                color_array.append(get_display_color(t, display_keys))
-                t_strings = {}
-                for key in display_keys: 
-                    t_strings[key] = format_string(t, key, number)
-                task_string_array.append(t_strings)
-                number += 1
-
-
-        # find the maximum length in each column (including column label)
-        column_widths = {key: max(max([len(t_strings[key]) for t_strings in task_string_array]), len(column_names[key]))
-                for key in display_keys}
+                if not div and t.get('status') == 'complete': 
+                    div = n
+                number_to_index[n] = i
+                row, color = get_row(t, column_keys, n)
+                n += 1
+                row_content.append(row)
+                row_color.append(color)
         
-        divider = " | " 
+        # make totals row
+        total_row, total_color = get_total_row(self.tasks, filterfun, column_keys)
+        row_content.append(total_row)
+        row_color.append(total_color)
+
+        # get widths of columns for printing 
+        column_widths = [max([len(row[i]) for row in row_content]) for i in range(len(column_keys))]
+
+        divider = " | "
+        beginner = " "
+        alt_divider = "   "
 
         # print column names
-        string = divider
-        for key in display_keys: 
-            string += column_names[key].ljust(column_widths[key]) + divider 
+        string = beginner
+        columns = row_content[0]
+        for i in range(len(column_keys) - 1):
+            string += columns[i].ljust(column_widths[i])
+            string += divider
+        string += columns[-1].ljust(column_widths[-1])
+        string += beginner
         cprint(string, 'white', 'on_blue', attrs = ['bold'])
 
         # print tasks
-        for i, t_string in enumerate(task_string_array):
-            string = divider
-            for key in display_keys: 
-                string += t_string[key].ljust(column_widths[key]) + divider
-            cprint(string, color_array[i])
-        
+        for i in range(1, len(row_content) - 1): 
+            row = row_content[i]
+            color = row_color[i]
+            if i == div:
+                # print dividing line
+                l = sum(column_widths) + 3 * (len(column_widths) - 1)
+                line = beginner + l * '_' + beginner
+                print(line)
+            print(beginner, end = "")
+            for i in range(len(column_keys) - 1):
+                cprint(row[i].ljust(column_widths[i]), color[i], end = "")
+                print(divider, end = "")
+            cprint(row[-1].ljust(column_widths[-1]), color[-1], end = "")
+            print(beginner)
+
+        # print dividing line
+        l = sum(column_widths) + 3 * (len(column_widths) - 1)
+        line = beginner + l * '_' + beginner
+        print(line)
+
         # print totals
-        string = divider
-        for key in display_keys: 
-            if key == 'description':
-                string += "TOTALS".ljust(column_widths[key]) + divider 
-            elif key == 'estimate':
-                string += "est_tot".ljust(column_widths[key]) + divider 
-            elif key == 'start_time':
-                string += "tot_spent".ljust(column_widths[key]) + divider 
-            else:
-                string += "".ljust(column_widths[key]) + divider 
-
-        cprint(string, 'white', 'on_green', attrs = ['bold'])
-
-
+        string = beginner
+        totals = row_content[-1]
+        for i in range(len(column_keys) - 1):
+            string += totals[i].ljust(column_widths[i])
+            string += alt_divider
+        string += row[-1].ljust(column_widths[-1])
+        string += beginner
+        cprint(string, 'white', attrs = ['bold'])
+        
         if out: 
             return number_to_index 
 
@@ -146,36 +168,93 @@ class Command():
     def deleteall(self, command_options): 
         shutil.rmtree(get_data())
 
-
-def format_string(t, key, number): 
-    if key == 'number':
-        return str(number)
-    if key == 'due':
-        d = t.get(key).day - datetime.now().day
-        if d == 0: 
-            return "today"
-        elif d < 0: 
-            return "overdue"
+def get_row(t, display_keys, number): 
+    """ outputs two arrays, one of strings to be displayed and one of colors (strings) for the corresponding to be displayed in"""
+    row = []
+    color = []
+    for key in display_keys:
+        if key == 'number': 
+            row.append(str(number))
+            color.append(None)
+        elif key == 'due':
+            d = t.get(key).day - datetime.now().day
+            if d == 0: 
+                string = "today"
+                col = None 
+            elif d < 0: 
+                string = "overdue"
+                col = 'red'
+            else: 
+                string = "in {} days".format(d)
+                col = None
+            row.append(string)
+            color.append(col)
+        elif key == 'description': 
+            row.append(t.get('description'))
+            display_color = {
+                    'pending': None,
+                    'progress': 'green',
+                    'complete': None 
+                    }
+            color.append(display_color[t.get('status')])
+        elif key == 'estimate':
+            row.append(timeutils.timedelta2hourmin_string(t.get('estimate')))
+            # row.append("{} hrs".format(t.get(key)) if t.get(key) else "")
+            color.append(None)
+        elif key == 'time_spent':
+            if t.get_progress(): 
+                time_spent_string = timeutils.timedelta2hourmin_string(
+                        t.get_progress()
+                        )
+                col = 'red' if t.get_progress() > t.get('estimate') else 'green'
+                # col = None
+                row.append(time_spent_string)
+                color.append(col)
+            else:
+                row.append("")
+                color.append(None)
+        elif key == 'status':
+            display_status = {
+                    'pending': 'to do',
+                    'progress': 'doing',
+                    'complete': 'done'
+                    }
+            row.append(display_status[t.get('status')])
+            color.append(None)
         else: 
-            return "in {} days".format(d)
-    if key == 'estimate': 
-        return "{} hrs".format(t.get(key)) if t.get(key) else ""
-    if key == 'start_time': 
-        if t.get('status') == 'complete' : 
-            return "{}:{}".format(t.get('end_time').hour - t.get('start_time').hour, t.get('end_time').minute - t.get('start_time').minute)
-        if t.get('status') == 'progress' : 
-            return "{}:{}".format(datetime.now().hour - t.get('start_time').hour, datetime.now().minute - t.get('start_time').minute)
-        else:
-            return ""
-    if key == 'status':
-        display_status = {
-                'pending': 'to do',
-                'progress': 'doing',
-                'complete': 'done'
-                }
-        return display_status[t.get('status')]
+            row.append("")
+            color.append(None)
+    assert(len(row) == len(color))
 
-    return str(t.get(key)) if t.get(key) else ""
+    return row, color
+
+def get_total_row(tasks, filterfun, display_keys):
+    row = []
+    color = []
+    for key in display_keys: 
+        if key == 'description': 
+            row.append('TOTALS')
+            color.append(None)
+        elif key == 'estimate':
+            # est_tot = str(sum(
+            #         [float(t.get('estimate')) for t in tasks if filterfun(t)]
+            #         ))
+            est_tot = su
+            est_tot = '10'
+            row.append(est_tot)
+            color.append(None)
+        elif key == 'time_spent': 
+            spent_tot = "{0:.1f}".format(sum(
+                    [timeutils.timedelta2hour_float(t.get_progress()) for t in tasks 
+                        if filterfun(t) and t.get_progress()]
+                    ))
+            row.append(spent_tot)
+            color.append(None)
+        else: 
+            row.append("")
+            color.append(None)
+    assert(len(row) == len(color))
+    return row, color
 
 def get_display_color(t, display_keys): 
 
@@ -206,7 +285,8 @@ def extract_add_data(options, tasks):
     return {'ID': get_new_id(tasks),
             'description': options[DESCRIPTION_OPTION],
             'status': 'pending',
-            'estimate': options[ESTIMATE_OPTION] if options[ESTIMATE_OPTION] else None, 
+            # 'estimate': float(options[ESTIMATE_OPTION]) if options[ESTIMATE_OPTION] else None, 
+            'estimate': timeutils.hour_string2time_delta(options[ESTIMATE_OPTION]) if options[ESTIMATE_OPTION] else None, 
             'due': make_due_date(options[DUE_OPTION]) if options[DUE_OPTION] else make_due_date('today'), 
             'priority': options[PRIORITY_OPTION] if options[PRIORITY_OPTION] else None,
             'created': datetime.now()

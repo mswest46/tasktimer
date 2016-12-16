@@ -11,6 +11,7 @@ END_TIME_KEY = 'end_time'
 PENDING = 'pending'
 COMPLETE = 'complete'
 IN_PROGRESS = 'progress'
+PAUSED = 'paused'
 
 
 class Task(): 
@@ -30,6 +31,10 @@ class Task():
         self.set(STATUS_KEY,  COMPLETE)
         self.set(END_TIME_KEY, datetime.now())
 
+    def pause(self): 
+        # TODO: this messes up time
+        self.set(STATUS_KEY, PAUSED)
+
     def has(self, datum_name): 
         return datum_name in self.data
 
@@ -38,6 +43,16 @@ class Task():
 
     def get(self, datum_name): 
         return self.data[datum_name]
+    
+    def get_progress(self): 
+        if self.get('status') == IN_PROGRESS:
+            return datetime.now() - self.get(START_TIME_KEY)
+        elif self.get('status') == COMPLETE:
+            return self.get(END_TIME_KEY) - self.get(START_TIME_KEY)
+        else:
+            return None
+
+
 
     def get_data(self): 
         return self.data
