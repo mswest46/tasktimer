@@ -1,8 +1,9 @@
 import uuid 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 STATUS_KEY = 'status'
 ID_KEY = 'ID'
+DUE_KEY = 'due'
 DESCRIPTION_KEY = 'description'
 START_TIME_KEY = 'start_time'
 END_TIME_KEY = 'end_time'
@@ -24,15 +25,23 @@ class Task():
         self.data = data
     
     def start(self): 
+        assert(self.get(STATUS_KEY) == PENDING)
         self.set(STATUS_KEY, IN_PROGRESS)
         self.set(START_TIME_KEY, datetime.now())
 
     def finish(self): 
+        assert(self.get(STATUS_KEY) == IN_PROGRESS)
         self.set(STATUS_KEY,  COMPLETE)
         self.set(END_TIME_KEY, datetime.now())
 
+    def postpone(self): 
+        td = timedelta(days = 1)
+        print(self.data[DUE_KEY])
+        self.data[DUE_KEY] += td
+        print(self.data[DUE_KEY])
+
     def pause(self): 
-        # TODO: this messes up time
+        # TODO: this messes up time things 
         self.set(STATUS_KEY, PAUSED)
 
     def has(self, datum_name): 

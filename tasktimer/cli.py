@@ -5,10 +5,12 @@ Usage:
   task add <description> --estimate <estimate> [--priority <priority>] [--recur <recur>] [--due <due>]
   task list [--filter <filter>]
   task move
-  task start [--id <number>]
-  task finish [--id <number>]
-  task edit [--number <number>]
+  task start [--number <number>]
+  task finish [--number <number>]
+  task next [--number <number>]
+  task postpone [--number <number>]
   task delete [--number <number>]
+  task edit [--number <number>]
   task deleteall
   task -h | --help
   task --version
@@ -19,7 +21,7 @@ Options:
   -r <recur> --recur <recur>                 the recurring pattern of task (e.g. every hour)
   -d <due> --due <due>                       the due date of the task
   -f <filter> --filter <filter>              filter of list. (e.g. weeek) defaults to only showing today's tasks
-  -id <number>                               the number (as shown by list) of the task the user is acting on
+  -n <number> --number <number>              the number (as shown by list) of the task the user is acting on [default: 1].
   -h --help                                  Show this screen.
   --version                                  Show version.
  
@@ -34,6 +36,8 @@ from inspect import getmembers, isclass
 from docopt import docopt
 from . import __version__ as VERSION
 from command import Command
+from tasktimer import Tasktimer
+from save_and_load import save, load, delete_tasktimer_file
 import pdb
 import sys
 
@@ -44,11 +48,21 @@ def main():
     #TODO: use Schema package to validate all options passed in? Or validate within context object? Think about it.
     # Now, we make sense of the command options here, try to understand what the user is trying to say, and then 
     # call the command object
-    command = Command()
+    tt = load()
+    if not tt: 
+        tt = Tasktimer()
+    tt.unpickle()
+
+    if options['deleteall']: 
+        delete_tasktimer_file()
+        return
+
     for name in options:
         if options[name] == True:
-            com = getattr(command, name)
+            com = getattr(tt, name)
             break
     # TODO: pass in nicer version of command options maybe
     com(options)
+
+    save(tt)
 
